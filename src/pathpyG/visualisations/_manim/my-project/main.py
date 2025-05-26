@@ -40,19 +40,19 @@ class TemporalNetworkPlot(Scene):
         intervals = None # number of numeric intervals, if None --> intervals = num of timesteps (end - start)
 
         #????
-        dynamic_layout_interval = None # specifies after how many time steps a new layout is computed
+        dynamic_layout_interval = 5 # specifies after how many time steps a new layout is computed
 
         #### Keyword Arguments
-        node_size = None # dict
-        node_color = [('1', 5, 0.3), ('2', 5, 8), ('2', 10, 0.1), ('3', 0, 0.12)]
+        node_size = {} #{'1': 1, '2':0.5} # dict
+        node_color = None #[('1', 5, 0.3), ('2', 5, 8), ('2', 10, 0.1), ('3', 0, 0.12)]
         node_cmap = get_cmap()
-        node_opacity = None # dict
-        node_label = None
+        node_opacity = {} #{'1': 0.5} # dict
+        node_label = {'1': 'a', '2':'b', '3':'c', '4':'d', '5':'e', '6':'f', '7':'g', '8':'h'}
         
-        edge_size = None
-        edge_color = [(('1','2'), 0, 0.5), (('2','1'), 2, 0.1)] #['red', 'yellow', 'blue']
+        edge_size = {} #{(('2', '1'), 2): 6} #dict
+        edge_color = None #[(('1','2'), 0, 0.5), (('2','1'), 2, 0.1)] #['red', 'yellow', 'blue']
         edge_cmap = get_cmap()
-        edge_opacity = None
+        edge_opacity = {} #{(('2', '1'), 2): 0.2} #dict
 
         ########################################################################
         
@@ -148,11 +148,18 @@ class TemporalNetworkPlot(Scene):
             layout=layout,
             labels=False,
             vertex_config={
-                v: {"radius": 0.04, "fill_color": color_dict[v] if v in color_dict else BLUE} for v in g.nodes
+                v: {"radius": node_size[v] if v in node_size else 0.04, "fill_color": color_dict[v] if v in color_dict else BLUE, "fill_opacity": node_opacity[v] if v in node_opacity else 1} for v in g.nodes
 
             }
         )
         self.add(graph)  # create initial nodes
+        #add labels
+        for node, label_text in node_label.items():
+            label = Text(label_text, font_size=8).set_color(BLACK)
+            label.next_to(graph[node], UP, buff=0.05)
+            node_label[node] = label
+            self.add(label)
+
         step_size = int((end - start + 1)/intervals) # step size based on the number of intervals
         time_window = range(start, end+1, step_size)
 
@@ -162,9 +169,9 @@ class TemporalNetworkPlot(Scene):
             range_stop = range_stop if range_stop < end + 1 else end + 1
 
             if step_size == 1 or time_step == end:
-                text = Text(f'T = {time_step}')
+                text = Text(f'T = {time_step}').set_color(BLACK)
             else:
-                text = Text(f'T = {time_step} to T = {range_stop - 1}')
+                text = Text(f'T = {time_step} to T = {range_stop - 1}').set_color(BLACK)
             text.to_corner(UL)
             self.add(text)
 
@@ -183,6 +190,11 @@ class TemporalNetworkPlot(Scene):
                         if node in new_layout:
                             new_pos = new_layout[node]
                             animations.append(graph[node].animate.move_to(new_pos))
+                            #also change the positions of the labels
+                            if node in node_label:
+                                label = node_label[node]
+                                animations.append(label.animate.move_to(new_pos + (0, 0.125, 0)))
+
                     self.play(*animations, run_time=delta)
                 
                 # color change
@@ -197,7 +209,7 @@ class TemporalNetworkPlot(Scene):
                         u, v = edge
                         sender = graph[u].get_center()
                         receiver = graph[v].get_center()
-                        line = Line(sender, receiver, stroke_width = 0.4, color = color_dict[(edge, step)] if (edge, step) in color_dict else GRAY)
+                        line = Line(sender, receiver, stroke_width = edge_size[(edge, step)] if (edge, step) in edge_size else 0.4, color = color_dict[(edge, step)] if (edge, step) in color_dict else GRAY, stroke_opacity= edge_opacity[(edge, step)] if (edge, step) in edge_opacity else 1)
                         lines.append(line)
             if len(lines) > 0:
                 change = True
