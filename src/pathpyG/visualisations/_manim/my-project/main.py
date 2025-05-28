@@ -11,7 +11,7 @@ def get_layout(graph: pp.TemporalGraph, type: str = 'fr', time_window: tuple = N
     layout_style = {}
     layout_style['layout'] = type
    
-    layout = pp.layout(graph.to_static_graph(time_window), **layout_style)
+    layout = pp.layout(graph.to_static_graph(time_window), **layout_style, seed = 0)
     for key in layout.keys():
         layout[key] = np.append(layout[key], 0.0) # manim works in 3 dimensions, not 2 --> add zeros as third dimension to every node coordinate
 
@@ -56,6 +56,11 @@ class TemporalNetworkPlot(Scene):
 
         ########################################################################
         
+        ##default values
+        default_node_size = 0.04
+        default_node_opacity = 1
+        default_node_color = BLUE
+
         # if intervals is not specified, every timestep is an interval
         if intervals == None:
             intervals = end - start
@@ -148,7 +153,7 @@ class TemporalNetworkPlot(Scene):
             layout=layout,
             labels=False,
             vertex_config={
-                v: {"radius": node_size[v] if v in node_size else 0.04, "fill_color": color_dict[v] if v in color_dict else BLUE, "fill_opacity": node_opacity[v] if v in node_opacity else 1} for v in g.nodes
+                v: {"radius": node_size[v] if v in node_size else default_node_size, "fill_color": color_dict[v] if v in color_dict else default_node_color, "fill_opacity": node_opacity[v] if v in node_opacity else default_node_opacity} for v in g.nodes
 
             }
         )
@@ -209,6 +214,19 @@ class TemporalNetworkPlot(Scene):
                         u, v = edge
                         sender = graph[u].get_center()
                         receiver = graph[v].get_center()
+
+                        # ensures that edges start at the borders of the nodes and not at the center
+                        s_to_r_vec = receiver - sender # vector from receiver to sender
+                        r_to_s_vec = sender - receiver # vector from sender to reiceiver
+                        # normalize vectors
+                        s_to_r_vec = 1/np.linalg.norm(s_to_r_vec) * s_to_r_vec
+                        r_to_s_vec = 1/np.linalg.norm(r_to_s_vec) * r_to_s_vec
+
+                        sender = graph[u].get_center() + (s_to_r_vec * (node_size[u] if u in node_size else default_node_size))
+                        receiver = graph[v].get_center() + (r_to_s_vec * (node_size[v] if v in node_size else default_node_size))
+
+
+                        print(sender, receiver)
                         line = Line(sender, receiver, stroke_width = edge_size[(edge, step)] if (edge, step) in edge_size else 0.4, color = color_dict[(edge, step)] if (edge, step) in color_dict else GRAY, stroke_opacity= edge_opacity[(edge, step)] if (edge, step) in edge_opacity else 1)
                         lines.append(line)
             if len(lines) > 0:
